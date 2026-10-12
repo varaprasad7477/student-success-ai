@@ -1,0 +1,130 @@
+{
+  "winner": {
+    "model": "hist_gradient_boosting",
+    "threshold": 0.2,
+    "pr_auc": 0.24886337580189172,
+    "roc_auc": 0.6332569228531066,
+    "brier": 0.15349083282426848,
+    "recall": 0.3786178381571175,
+    "precision": 0.30122180451127817,
+    "rows": 9123,
+    "positive_rate": 0.18557492053052724
+  },
+  "leaderboard": [
+    {
+      "model": "hist_gradient_boosting",
+      "threshold": 0.2,
+      "validation_pr_auc": 0.33509301260306446,
+      "validation_brier": 0.14093951169407629
+    },
+    {
+      "model": "logistic_regression",
+      "threshold": 0.54,
+      "validation_pr_auc": 0.3321976321218434,
+      "validation_brier": 0.22389068646354982
+    },
+    {
+      "model": "random_forest",
+      "threshold": 0.2,
+      "validation_pr_auc": 0.3104400962637377,
+      "validation_brier": 0.1429738895455564
+    }
+  ],
+  "rows": 16968,
+  "holdout_presentation": "2014J",
+  "validation_presentation": "2014B",
+  "same_student_overlap_removed": true,
+  "calibration_deciles": [
+    {
+      "decile": 0,
+      "n": 913,
+      "observed": 0.09857612267250822,
+      "predicted": 0.06981984549743452
+    },
+    {
+      "decile": 1,
+      "n": 912,
+      "observed": 0.10197368421052631,
+      "predicted": 0.0861958944508982
+    },
+    {
+      "decile": 2,
+      "n": 912,
+      "observed": 0.13815789473684212,
+      "predicted": 0.09720253007467505
+    },
+    {
+      "decile": 3,
+      "n": 912,
+      "observed": 0.12828947368421054,
+      "predicted": 0.10439619195590914
+    },
+    {
+      "decile": 4,
+      "n": 913,
+      "observed": 0.13143483023001096,
+      "predicted": 0.11470885020135907
+    },
+    {
+      "decile": 5,
+      "n": 912,
+      "observed": 0.1699561403508772,
+      "predicted": 0.1284056437490871
+    },
+    {
+      "decile": 6,
+      "n": 912,
+      "observed": 0.2324561403508772,
+      "predicted": 0.1467961869576955
+    },
+    {
+      "decile": 7,
+      "n": 912,
+      "observed": 0.24232456140350878,
+      "predicted": 0.18824575866592339
+    },
+    {
+      "decile": 8,
+      "n": 912,
+      "observed": 0.36622807017543857,
+      "predicted": 0.29135776641229877
+    },
+    {
+      "decile": 9,
+      "n": 913,
+      "observed": 0.24644030668127054,
+      "predicted": 0.47324052478213857
+    }
+  ],
+  "subgroup_audit": {
+    "gender_audit": [
+      {
+        "group": "F",
+        "support": 3835,
+        "positive_rate": 0.17262059973924382,
+        "recall": 0.36706948640483383
+      },
+      {
+        "group": "M",
+        "support": 5288,
+        "positive_rate": 0.1949697428139183,
+        "recall": 0.3860329776915616
+      }
+    ],
+    "age_band_audit": [
+      {
+        "group": "0-35",
+        "support": 6246,
+        "positive_rate": 0.18699967979506885,
+        "recall": 0.3878424657534247
+      },
+      {
+        "group": "35-55",
+        "support": 2790,
+        "positive_rate": 0.182078853046595,
+        "recall": 0.36023622047244097
+      }
+    ]
+  },
+  "limitations": "Public Open University benchmark only; not local institution validation or causal explanation."
+}

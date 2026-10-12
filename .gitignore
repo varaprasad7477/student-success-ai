@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+models/*.joblib
+models/*.json
+.streamlit/secrets.toml
+data/*.db
+**/*.db
+*.log
+*.sqlite
+*.sqlite3
+

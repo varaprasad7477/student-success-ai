@@ -1,0 +1,28 @@
+{
+  "institution_id": "demo-college",
+  "display_name": "Demo College",
+  "column_map": {
+    "Student ID": "student_id",
+    "Attendance %": "attendance_rate",
+    "Assignments Due": "assignments_due",
+    "Assignments Submitted": "assignments_submitted",
+    "Average Mark": "assessment_average",
+    "Score Change": "assessment_change",
+    "Days Since Login": "days_since_login",
+    "Support Contacts": "support_contacts",
+    "Credits Completed %": "credits_completed_ratio",
+    "Historical Outcome": "outcome"
+  },
+  "units": {
+    "attendance_rate": "percent",
+    "credits_completed_ratio": "percent"
+  },
+  "model_fields": ["attendance_rate", "assignments_due", "assignments_submitted", "submission_rate", "assessment_average", "assessment_change", "days_since_login", "support_contacts", "credits_completed_ratio", "engagement_score"],
+  "risk_thresholds": {"medium": 0.35, "high": 0.65},
+  "rules": [
+    {"id": "attendance-critical", "field": "attendance_rate", "operator": "lt", "value": 0.65, "severity": "high", "message": "Attendance is below the institution's 65% outreach threshold."},
+    {"id": "missing-work", "field": "submission_rate", "operator": "lt", "value": 0.6, "severity": "medium", "message": "Fewer than 60% of due assignments are submitted."},
+    {"id": "inactive", "field": "days_since_login", "operator": "gt", "value": 14, "severity": "medium", "message": "No learning-platform activity for more than 14 days."}
+  ]
+}
+

@@ -1,0 +1,94 @@
+{
+  "winner": {
+    "model": "hist_gradient_boosting",
+    "threshold": 0.37000000000000005,
+    "pr_auc": 0.8974380351592658,
+    "roc_auc": 0.9065506441723752,
+    "brier": 0.10568797661511578,
+    "recall": 0.8036593947923997,
+    "precision": 0.8133903133903134,
+    "f1": 0.8084955752212389
+  },
+  "leaderboard": [
+    {
+      "model": "hist_gradient_boosting",
+      "threshold": 0.37000000000000005,
+      "pr_auc": 0.8974380351592658,
+      "roc_auc": 0.9065506441723752,
+      "brier": 0.10568797661511578,
+      "recall": 0.8036593947923997,
+      "precision": 0.8133903133903134,
+      "f1": 0.8084955752212389
+    },
+    {
+      "model": "random_forest",
+      "threshold": 0.4,
+      "pr_auc": 0.8968531296420054,
+      "roc_auc": 0.9070079570205567,
+      "brier": 0.10679261469177248,
+      "recall": 0.812807881773399,
+      "precision": 0.815677966101695,
+      "f1": 0.8142403947832217
+    },
+    {
+      "model": "logistic_regression",
+      "threshold": 0.48500000000000004,
+      "pr_auc": 0.8968288986201711,
+      "roc_auc": 0.901088535193975,
+      "brier": 0.11213556127978865,
+      "recall": 0.7811400422237861,
+      "precision": 0.8453922315308454,
+      "f1": 0.8119970738844184
+    }
+  ],
+  "rows": 3630,
+  "positive_rate": 0.39146005509641874,
+  "subgroup_audit": {
+    "gender_audit": [
+      {
+        "group": "Female",
+        "support": 2381,
+        "positive_rate": 0.3023939521209576,
+        "recall": 0.7583333333333333,
+        "precision": 0.7593880389429764
+      },
+      {
+        "group": "Male",
+        "support": 1249,
+        "positive_rate": 0.5612489991993594,
+        "recall": 0.8502139800285307,
+        "precision": 0.8700729927007299
+      }
+    ],
+    "age_band_audit": [
+      {
+        "group": "20 or younger",
+        "support": 2080,
+        "positive_rate": 0.2605769230769231,
+        "recall": 0.7177121771217713,
+        "precision": 0.6996402877697842
+      },
+      {
+        "group": "21-24",
+        "support": 574,
+        "positive_rate": 0.43205574912891986,
+        "recall": 0.8508064516129032,
+        "precision": 0.8115384615384615
+      },
+      {
+        "group": "25-29",
+        "support": 355,
+        "positive_rate": 0.6929577464788732,
+        "recall": 0.8577235772357723,
+        "precision": 0.9254385964912281
+      },
+      {
+        "group": "30+",
+        "support": 621,
+        "positive_rate": 0.6199677938808373,
+        "recall": 0.8597402597402597,
+        "precision": 0.9194444444444444
+      }
+    ]
+  }
+}

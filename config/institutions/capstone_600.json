@@ -1,0 +1,26 @@
+{
+  "institution_id": "capstone-development-data",
+  "display_name": "Capstone Development Dataset",
+  "data_classification": "synthetic-development",
+  "column_map": {
+    "student_id": "student_id",
+    "attendance_rate": "attendance_rate",
+    "assignment_submissions": "assignments_submitted",
+    "assessment_score": "assessment_average",
+    "engagement_score": "engagement_score",
+    "dropout_risk": "outcome"
+  },
+  "units": {
+    "attendance_rate": "ratio",
+    "engagement_score": "ratio"
+  },
+  "model_fields": ["attendance_rate", "assignments_submitted", "assessment_average", "engagement_score"],
+  "audit_fields": ["gender", "age_band"],
+  "risk_thresholds": {"medium": 0.35, "high": 0.65},
+  "rules": [
+    {"id": "attendance-critical", "field": "attendance_rate", "operator": "lt", "value": 0.65, "severity": "high", "message": "Attendance is below the 65% outreach threshold."},
+    {"id": "engagement-low", "field": "engagement_score", "operator": "lt", "value": 0.45, "severity": "medium", "message": "Recorded learning engagement is below the review threshold."},
+    {"id": "assessment-low", "field": "assessment_average", "operator": "lt", "value": 50, "severity": "medium", "message": "The assessment average is below 50."}
+  ]
+}
+

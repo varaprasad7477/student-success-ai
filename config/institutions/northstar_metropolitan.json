@@ -1,0 +1,52 @@
+{
+  "institution_id": "northstar-metropolitan-university",
+  "display_name": "Northstar Metropolitan University",
+  "institution_type": "University",
+  "data_classification": "public-uci-development",
+  "prediction_horizon": "End of semester 1 — support planning for the following term",
+  "minimum_data_completeness": 0.75,
+  "critical_fields": ["assignments_due", "assignments_submitted", "assessment_average", "credits_completed_ratio"],
+  "source": {
+    "name": "UCI Predict Students Dropout and Academic Success",
+    "dataset_id": 697,
+    "doi": "10.24432/C5MC89",
+    "license": "CC BY 4.0"
+  },
+  "column_map": {
+    "learner_id": "student_id",
+    "modules_enrolled": "assignments_due",
+    "modules_evaluated": "assignments_submitted",
+    "first_semester_average": "assessment_average",
+    "semester_score_change": "assessment_change",
+    "credits_completed_percent": "credits_completed_ratio",
+    "academic_engagement": "engagement_score",
+    "confirmed_dropout": "outcome"
+  },
+  "units": {
+    "credits_completed_ratio": "percent",
+    "engagement_score": "ratio"
+  },
+  "model_fields": [
+    "assignments_due",
+    "assignments_submitted",
+    "submission_rate",
+    "assessment_average",
+    "credits_completed_ratio",
+    "engagement_score"
+  ],
+  "data_dictionary": [
+    {"field": "assignments_due", "definition": "Curricular units enrolled in semester 1", "available_by": "End of semester 1", "owner": "Registrar", "zero_is_valid": true},
+    {"field": "assignments_submitted", "definition": "Semester-1 units with evaluation participation, capped at units enrolled", "available_by": "End of semester 1", "owner": "Academic records", "zero_is_valid": true},
+    {"field": "assessment_average", "definition": "Weighted semester-1 curricular-unit grade converted from 0–20 to 0–100", "available_by": "End of semester 1", "owner": "Academic records", "zero_is_valid": true},
+    {"field": "credits_completed_ratio", "definition": "Semester-1 approved units divided by enrolled units", "available_by": "End of semester 1", "owner": "Registrar", "zero_is_valid": true},
+    {"field": "engagement_score", "definition": "Mean of semester-1 evaluation participation and credit completion", "available_by": "End of semester 1", "owner": "Analytics", "zero_is_valid": true}
+  ],
+  "audit_fields": ["gender_audit", "age_band_audit"],
+  "risk_thresholds": {"medium": 0.35, "high": 0.65},
+  "rules": [
+    {"id": "low-credit-progress", "field": "credits_completed_ratio", "operator": "lt", "value": 0.5, "severity": "high", "message": "Fewer than half of first-semester enrolled credits were approved."},
+    {"id": "low-assessment-average", "field": "assessment_average", "operator": "lt", "value": 50, "severity": "medium", "message": "The first-semester assessment average is below 50%."},
+    {"id": "low-evaluation-participation", "field": "submission_rate", "operator": "lt", "value": 0.6, "severity": "medium", "message": "Evaluation participation is below 60% of enrolled modules."}
+  ]
+}
+

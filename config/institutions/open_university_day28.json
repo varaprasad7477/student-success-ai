@@ -1,0 +1,27 @@
+{
+  "institution_id": "open-university-oulad-demo",
+  "display_name": "Open University learning analytics benchmark",
+  "institution_type": "University",
+  "data_classification": "public-research-development",
+  "prediction_horizon": "Day 28 of the course presentation — subsequent withdrawal",
+  "minimum_data_completeness": 0.6,
+  "critical_fields": ["engagement_score", "days_since_login"],
+  "source": {"name": "Open University Learning Analytics Dataset (OULAD)", "dataset_id": 349, "doi": "10.24432/C5KK69", "license": "CC BY 4.0"},
+  "column_map": {"learner_id": "student_id", "assessments_due_28": "assignments_due", "assessments_submitted_28": "assignments_submitted", "assessment_average_28": "assessment_average", "days_since_activity_28": "days_since_login", "active_day_ratio_28": "engagement_score", "withdrawn_after_28": "outcome"},
+  "units": {"engagement_score": "ratio"},
+  "model_fields": ["assignments_due", "assignments_submitted", "submission_rate", "assessment_average", "days_since_login", "engagement_score"],
+  "data_dictionary": [
+    {"field":"assignments_due","definition":"Assessments due on days 0–28","available_by":"Day 28","owner":"OULAD assessments","zero_is_valid":true},
+    {"field":"assignments_submitted","definition":"Due assessments submitted by day 28, excluding banked credit","available_by":"Day 28","owner":"OULAD studentAssessment","zero_is_valid":true},
+    {"field":"assessment_average","definition":"Mean score for due assessments submitted by day 28","available_by":"Day 28","owner":"OULAD studentAssessment","zero_is_valid":true},
+    {"field":"days_since_login","definition":"Days since last recorded VLE activity at day 28; 29 when none observed","available_by":"Day 28","owner":"OULAD studentVle","zero_is_valid":true},
+    {"field":"engagement_score","definition":"Distinct VLE-active days on days 0–28 divided by 29; not an attendance measure","available_by":"Day 28","owner":"OULAD studentVle","zero_is_valid":true}
+  ],
+  "audit_fields": ["gender_audit", "age_band_audit"],
+  "risk_thresholds": {"medium": 0.12, "high": 0.2},
+  "rules": [
+    {"id":"no-recent-vle","field":"days_since_login","operator":"gt","value":14,"severity":"medium","message":"No recorded learning-platform activity in the past 14 days."},
+    {"id":"low-early-activity","field":"engagement_score","operator":"lt","value":0.14,"severity":"medium","message":"Recorded activity occurred on fewer than 4 of the first 29 days."},
+    {"id":"missed-early-assessments","field":"submission_rate","operator":"lt","value":0.5,"severity":"high","message":"Fewer than half of assessments due by day 28 were submitted."}
+  ]
+}

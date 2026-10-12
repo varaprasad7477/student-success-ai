@@ -1,0 +1,7 @@
+# OULAD benchmark provenance and limits
+
+Source: [UCI Open University Learning Analytics Dataset (ID 349)](https://archive.ics.uci.edu/dataset/349/open+university+learning+analytics+dataset), DOI [10.24432/C5KK69](https://doi.org/10.24432/C5KK69), licensed CC BY 4.0. Cite the dataset and original publication when reusing it. The downloaded archive is not redistributed in this project; `scripts/prepare_oulad.py` reads the official ZIP.
+
+This benchmark uses the recorded student-module-presentation, not a unique person, as the prediction unit. Of 32,593 source rows, 27,422 met the day-28 eligibility rule: registered by day 28 and not unregistered by then. Withdrawals with an unknown unregistration date were excluded. Of eligible rows, 18.3% were labeled as later withdrawals. Only VLE activity and assessments visible by day 28 feed the model. The 2014J presentation is the forward holdout; recurring learner IDs in that presentation are removed from earlier training/validation rows.
+
+The model is deliberately separate from Northstar's semester-one UCI 697 model. Its label, timing, data collection, and population differ. Public-data performance does not prove accuracy in a new school, college, or university. VLE activity is not attendance, lack of clicks is not a diagnosis, and these counterfactual feature explanations describe model behavior rather than causes. Local governance, mapping review, a later-period holdout, calibration, subgroup review, privacy controls, and a supervised pilot remain prerequisites for deployment.
