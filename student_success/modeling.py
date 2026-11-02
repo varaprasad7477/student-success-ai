@@ -68,6 +68,157 @@ def _best_threshold(y: pd.Series, probabilities: np.ndarray) -> float:
     return float(choices[int(np.argmax(scores))])
 
 
+def _chronological_masks(time_values: pd.Series) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.Series]:
+    timestamps = pd.to_datetime(time_values.reset_index(drop=True), errors="coerce", utc=True)
+    if timestamps.isna().any():
+        raise ValueError("Temporal evaluation requires a valid timestamp for every training row.")
+    unique_times = timestamps.drop_duplicates().sort_values().reset_index(drop=True)
+    if len(unique_times) < 5:
+        raise ValueError("Temporal evaluation requires at least five distinct time values.")
+
+    train_end = unique_times.iloc[max(0, int(np.ceil(len(unique_times) * 0.6)) - 1)]
+    validation_end = unique_times.iloc[max(1, int(np.ceil(len(unique_times) * 0.8)) - 1)]
+    if validation_end <= train_end or validation_end >= unique_times.iloc[-1]:
+        raise ValueError("Could not create distinct chronological train, validation, and test periods.")
+
+    train_mask = (timestamps <= train_end).to_numpy()
+    validation_mask = ((timestamps > train_end) & (timestamps <= validation_end)).to_numpy()
+    test_mask = (timestamps > validation_end).to_numpy()
+    return train_mask, validation_mask, test_mask, timestamps
+
+
+def train_temporal(
+    frame: pd.DataFrame,
+    time_values: pd.Series,
+    output_dir: str | Path,
+    audit_fields: list[str] | None = None,
+    feature_names: list[str] | None = None,
+) -> dict:
+    requested = feature_names or MODEL_FIELDS
+    unknown = sorted(set(requested) - set(MODEL_FIELDS))
+    if unknown:
+        raise ValueError(f"Unknown training feature(s): {', '.join(unknown)}")
+    if len(frame) != len(time_values):
+        raise ValueError("The time column must have one value for every training row.")
+
+    frame = frame.reset_index(drop=True)
+    time_values = time_values.reset_index(drop=True)
+    active_fields = [field for field in requested if field in frame and frame[field].notna().any()]
+    if len(active_fields) < 3:
+        raise ValueError("Training blocked: at least three usable canonical predictors are required.")
+    X, y = frame[active_fields], frame["outcome"]
+    _minimum_data_gate(y)
+    train_mask, validation_mask, test_mask, timestamps = _chronological_masks(time_values)
+    partitions = {
+        "train": y.iloc[np.flatnonzero(train_mask)],
+        "validation": y.iloc[np.flatnonzero(validation_mask)],
+        "test": y.iloc[np.flatnonzero(test_mask)],
+    }
+    for name, labels in partitions.items():
+        counts = labels.value_counts()
+        if len(labels) < 100 or len(counts) != 2 or counts.min() < 20:
+            raise ValueError(
+                f"Temporal {name} partition needs at least 100 rows and 20 examples of each outcome."
+            )
+
+    train_positions = np.flatnonzero(train_mask)
+    validation_positions = np.flatnonzero(validation_mask)
+    test_positions = np.flatnonzero(test_mask)
+    leaderboard = []
+    candidates = build_candidates(active_fields)
+    for name, estimator in candidates.items():
+        estimator.fit(X.iloc[train_positions], y.iloc[train_positions])
+        validation_probabilities = estimator.predict_proba(X.iloc[validation_positions])[:, 1]
+        validation_y = y.iloc[validation_positions]
+        threshold = _best_threshold(validation_y, validation_probabilities)
+        validation_predictions = validation_probabilities >= threshold
+        leaderboard.append({
+            "model": name,
+            "threshold": threshold,
+            "validation_pr_auc": average_precision_score(validation_y, validation_probabilities),
+            "validation_roc_auc": roc_auc_score(validation_y, validation_probabilities),
+            "validation_brier": brier_score_loss(validation_y, validation_probabilities),
+            "validation_recall": recall_score(validation_y, validation_predictions),
+            "validation_precision": precision_score(validation_y, validation_predictions, zero_division=0),
+            "validation_f1": f1_score(validation_y, validation_predictions),
+        })
+    leaderboard.sort(
+        key=lambda item: (item["validation_pr_auc"], -item["validation_brier"]), reverse=True
+    )
+    winner = leaderboard[0]
+    fit_positions = np.concatenate([train_positions, validation_positions])
+    model = candidates[winner["model"]].fit(X.iloc[fit_positions], y.iloc[fit_positions])
+    test_y = y.iloc[test_positions]
+    test_probabilities = model.predict_proba(X.iloc[test_positions])[:, 1]
+    test_predictions = test_probabilities >= winner["threshold"]
+    final_metrics = {
+        "model": winner["model"],
+        "threshold": winner["threshold"],
+        "pr_auc": average_precision_score(test_y, test_probabilities),
+        "roc_auc": roc_auc_score(test_y, test_probabilities),
+        "brier": brier_score_loss(test_y, test_probabilities),
+        "recall": recall_score(test_y, test_predictions),
+        "precision": precision_score(test_y, test_predictions, zero_division=0),
+        "f1": f1_score(test_y, test_predictions),
+        "rows": len(test_positions),
+        "positive_rate": float(test_y.mean()),
+    }
+
+    fairness = {}
+    test_frame = frame.iloc[test_positions]
+    for field in audit_fields or []:
+        if field not in test_frame:
+            continue
+        groups = []
+        for value, indexes in test_frame.groupby(field, dropna=False).groups.items():
+            positions = test_frame.index.get_indexer(indexes)
+            if len(positions) < 20:
+                continue
+            group_y = test_y.iloc[positions]
+            group_predictions = test_predictions[positions]
+            groups.append({
+                "group": str(value),
+                "support": len(positions),
+                "positive_rate": float(group_y.mean()),
+                "recall": recall_score(group_y, group_predictions, zero_division=0),
+                "precision": precision_score(group_y, group_predictions, zero_division=0),
+            })
+        if groups:
+            fairness[field] = groups
+
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    training_frame = X.iloc[fit_positions]
+    bundle = {
+        "model": model,
+        "model_name": winner["model"],
+        "threshold": winner["threshold"],
+        "feature_names": active_fields,
+        "training_medians": training_frame.median(numeric_only=True).to_dict(),
+        "evaluation_design": "chronological_train_validation_test",
+    }
+    joblib.dump(bundle, output / "model_bundle.joblib")
+    report = {
+        "evaluation_design": "chronological_train_validation_test",
+        "status": "held_out_temporal_test",
+        "threshold_selection": (
+            "F1 maximized on validation data only; choose using local costs and advisor capacity before a pilot."
+        ),
+        "split_boundaries_utc": {
+            "train_end": timestamps[train_mask].max().isoformat(),
+            "validation_end": timestamps[validation_mask].max().isoformat(),
+            "test_start": timestamps[test_mask].min().isoformat(),
+        },
+        "split_rows": {name: len(labels) for name, labels in partitions.items()},
+        "winner": final_metrics,
+        "validation_leaderboard": leaderboard,
+        "rows": len(frame),
+        "subgroup_audit": fairness,
+    }
+    (output / "metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    return report
+
+
 def train(frame: pd.DataFrame, output_dir: str | Path, audit_fields: list[str] | None = None,
           feature_names: list[str] | None = None) -> dict:
     requested = feature_names or MODEL_FIELDS
@@ -110,6 +261,7 @@ def train(frame: pd.DataFrame, output_dir: str | Path, audit_fields: list[str] |
         "threshold": winner["threshold"],
         "feature_names": active_fields,
         "training_medians": X.median(numeric_only=True).to_dict(),
+        "evaluation_design": "stratified_oof_development_only",
     }
     joblib.dump(bundle, output / "model_bundle.joblib")
     fairness = {}
@@ -134,7 +286,14 @@ def train(frame: pd.DataFrame, output_dir: str | Path, audit_fields: list[str] |
             })
         if groups:
             fairness[field] = groups
-    report = {"winner": winner, "leaderboard": leaderboard, "rows": len(frame), "positive_rate": float(y.mean()), "subgroup_audit": fairness}
+    report = {
+        "evaluation_design": "stratified_oof_development_only",
+        "status": "development_estimates_not_independent_test",
+        "winner": winner,
+        "leaderboard": leaderboard,
+        "rows": len(frame),
+        "positive_rate": float(y.mean()),
+        "subgroup_audit": fairness,
+    }
     (output / "metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
-

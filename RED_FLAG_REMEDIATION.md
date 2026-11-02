@@ -23,7 +23,7 @@ This register distinguishes implemented safeguards from evidence that only a par
 | Training/production separation | Versioned config/model artifacts, explicit release gates, Docker and CI | Model registry, artifact signing, staged promotion, rollback exercise |
 | Monitoring incomplete | Data quality, workload, case progress, performance and subgroup views | Scheduled alerts, drift baselines, incident response ownership |
 | Test coverage small | Expanded validation, missingness, duplicate, horizon, range, auth, case, API, and rule tests | Load, accessibility, concurrency, migration, and penetration testing |
-| Accessibility unverified | Semantic Streamlit controls and textual chart/table alternatives | WCAG audit with keyboard and screen-reader users |
+| Accessibility unverified | Semantic HTML controls and textual table alternatives | WCAG audit with keyboard and screen-reader users |
 | Self-test confused with new validation | Clean and deliberately damaged CSVs plus a labeled holdout self-test page; missing data abstains or rejects | Independent external and local cohort validation |
 | Misleading accuracy and dashboard ordering | Self-test now compares accuracy with a majority-class baseline and displays missed withdrawals and false alerts; dashboard uses explicit support-priority order | Staff review of workload costs and intervention benefit |
 

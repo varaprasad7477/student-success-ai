@@ -53,21 +53,39 @@ def canonicalize(source: pd.DataFrame, config: dict, training: bool = False) -> 
     required = {"student_id"} | ({"outcome"} if training else set())
     missing = sorted(required - set(frame.columns))
     if missing:
+        if "student_id" in missing:
+            id_headers = [source_name for source_name, field in column_map.items() if field == "student_id"]
+            if not id_headers:
+                raise ValueError("No CSV column is mapped as the student identifier. Set one in Data setup.")
+            expected = " or ".join(repr(name) for name in id_headers)
+            received = ", ".join(map(str, source.columns[:12])) or "no columns"
+            raise ValueError(
+                f"Student ID column not found. This workspace expects {expected}. "
+                f"This CSV contains: {received}. Rename your ID column or update its mapping in Data setup."
+            )
         raise ValueError(f"Missing required mapped fields: {', '.join(missing)}")
 
     warnings: list[str] = []
     dataset_issues: list[dict] = []
     units = config.get("units", {})
-    relevant_fields = set(config.get("model_fields", MODEL_FIELDS)) | set(config.get("critical_fields", []))
-    relevant_fields.update(rule.get("field") for rule in config.get("rules", []))
+    scoring_fields = set(config.get("model_fields", MODEL_FIELDS)) | set(config.get("critical_fields", []))
+    rule_fields = {rule.get("field") for rule in config.get("rules", [])}
+    relevant_fields = scoring_fields | rule_fields
     for field in NUMERIC_FIELDS:
         if field not in frame:
             frame[field] = np.nan
             if field in relevant_fields:
-                warnings.append(f"{field} is unavailable; records that need it may not be scored.")
+                if field in scoring_fields:
+                    warnings.append(f"{field} is unavailable; records that need it may not be scored.")
+                else:
+                    warnings.append(f"{field} is unavailable; the related local support reminder will not be checked.")
                 dataset_issues.append({"field": field, "issue": "column unavailable", "affected_rows": len(frame)})
         original = frame[field]
-        frame[field] = pd.to_numeric(original, errors="coerce")
+        numeric_source = original
+        if units.get(field) in {"percent", "percentage_text"}:
+            # Accept conventional CSV cells such as "65%" as well as "65".
+            numeric_source = original.astype(str).str.strip().str.rstrip("%").str.replace(",", "", regex=False)
+        frame[field] = pd.to_numeric(numeric_source, errors="coerce")
         malformed = original.notna() & original.astype(str).str.strip().ne("") & frame[field].isna()
         if malformed.any() and field in relevant_fields:
             count = int(malformed.sum())
@@ -76,7 +94,7 @@ def canonicalize(source: pd.DataFrame, config: dict, training: bool = False) -> 
         if units.get(field) == "percent":
             frame[field] = frame[field] / 100.0
         low, high = RANGES[field]
-        invalid = frame[field].notna() & (frame[field] < low)
+        invalid = frame[field].notna() & ((frame[field] < low) | ~np.isfinite(frame[field]))
         if high is not None:
             invalid |= frame[field].notna() & (frame[field] > high)
         if invalid.any():

@@ -1,6 +1,6 @@
 """Session-only casework for public benchmark demonstrations.
 
-This object is held in Streamlit session state and never writes teacher notes to disk.
+This object is held in a demonstration web session and never writes teacher notes to disk.
 """
 from __future__ import annotations
 
@@ -30,8 +30,10 @@ class DemoSupportStore:
             "updated_at": self._now(), "updated_by": updated_by,
         }
 
-    def screening_summary(self, institution_id: str) -> dict:
-        rows = [value for (owner, _), value in self.screenings.items() if owner == institution_id]
+    def screening_summary(self, institution_id: str, student_ids: list[str] | None = None) -> dict:
+        allowed = set(student_ids) if student_ids is not None else None
+        rows = [value for (owner, student_id), value in self.screenings.items()
+                if owner == institution_id and (allowed is None or student_id in allowed)]
         complete = sum(bool(row["checklist"]) and all(row["checklist"].values()) for row in rows)
         return {"started": len(rows), "complete": complete, "open": len(rows) - complete}
 

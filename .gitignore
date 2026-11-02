@@ -4,10 +4,10 @@ __pycache__/
 *.pyc
 models/*.joblib
 models/*.json
-.streamlit/secrets.toml
 data/*.db
 **/*.db
 *.log
 *.sqlite
 *.sqlite3
+data/.session_secret
 

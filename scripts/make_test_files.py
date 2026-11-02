@@ -10,7 +10,7 @@ holdout = source.loc[source.code_presentation.eq("2014J")].sample(n=300, random_
 clean = holdout[["learner_id", "assessments_due_28", "assessments_submitted_28",
                  "assessment_average_28", "days_since_activity_28", "active_day_ratio_28",
                  "withdrawn_after_28"]].sort_values("learner_id")
-destination = root / "data/test_uploads"
+destination = root / "DEMO_DATASETS"
 destination.mkdir(parents=True, exist_ok=True)
 clean.to_csv(destination / "oulad_clean_labeled_300.csv", index=False)
 

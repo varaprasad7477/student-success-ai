@@ -24,7 +24,7 @@ def test_prediction_is_independent_of_other_rows():
     service = PredictionService(CONFIG)
     alone, _ = service.predict(row())
     together, _ = service.predict(pd.concat([row(), row("S2", 95)], ignore_index=True))
-    assert alone.iloc[0].risk_probability == pytest.approx(together.iloc[0].risk_probability)
+    assert alone.iloc[0].screening_index == pytest.approx(together.iloc[0].screening_index)
 
 
 def test_percent_units_are_converted_and_validated():
@@ -54,6 +54,7 @@ def test_blank_and_malformed_ids_are_rejected():
 
 def test_non_numeric_input_is_reported_as_data_issue():
     source = row()
+    source["Average Mark"] = source["Average Mark"].astype(object)
     source.loc[0, "Average Mark"] = "not recorded"
     result = canonicalize(source, CONFIG)
     assert any(issue["issue"] == "non-numeric value" and issue["field"] == "assessment_average"
@@ -71,6 +72,18 @@ def test_missing_fields_are_disclosed_and_can_block_scoring():
     assert pd.isna(prediction.iloc[0].risk_probability)
 
 
+def test_missing_rule_only_field_does_not_claim_scoring_is_blocked():
+    config = {
+        **CONFIG,
+        "model_fields": ["attendance_rate", "assessment_average"],
+        "critical_fields": ["attendance_rate"],
+        "rules": [{"id": "activity", "field": "days_since_login", "operator": "gt", "value": 14, "severity": "medium", "message": "Review activity."}],
+    }
+    _, warnings = PredictionService(config).predict(row().drop(columns=["Days Since Login"]))
+    assert any("local support reminder" in warning for warning in warnings)
+    assert not any("may not be scored" in warning for warning in warnings)
+
+
 def test_plain_language_evidence_does_not_claim_a_cause():
     reasons = [{"feature": "assessment_average", "value": 42.0, "baseline": 65.0},
                {"feature": "assignments_due", "value": 12.0, "baseline": 8.0}]
@@ -86,10 +99,13 @@ def test_unvalidated_institution_is_not_given_a_probability():
     assert pd.isna(result.iloc[0].risk_probability)
 
 
-def test_prediction_contains_horizon_and_review_range():
+def test_local_screen_has_index_and_does_not_invent_probability_or_uncertainty():
     config = {**CONFIG, "prediction_horizon": "Week 8", "minimum_data_completeness": .5}
     prediction, _ = PredictionService(config).predict(row())
     item = prediction.iloc[0]
     assert item.prediction_horizon == "Week 8"
-    assert 0 <= item.review_range_low <= item.risk_probability <= item.review_range_high <= 1
+    assert 0 <= item.screening_index <= 1
+    assert item.risk_probability is None
+    assert item.review_range_low is None
+    assert item.review_range_high is None
 

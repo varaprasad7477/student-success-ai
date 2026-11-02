@@ -28,6 +28,10 @@ class AuditStore:
 
     def _initialize(self):
         with self.connection() as db:
+            db.execute("""CREATE TABLE IF NOT EXISTS institution_datasets (
+                institution_id TEXT PRIMARY KEY, source_json TEXT NOT NULL,
+                results_json TEXT NOT NULL, config_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL)""")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS prediction_audit (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +111,21 @@ class AuditStore:
     def _hash_password(password: str, salt_hex: str) -> str:
         return hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 310_000).hex()
 
+    def get_dataset(self, institution_id: str) -> dict | None:
+        with self.connection() as db:
+            row = db.execute("SELECT * FROM institution_datasets WHERE institution_id=?", (institution_id,)).fetchone()
+        return dict(row) if row else None
+
+    def save_dataset(self, institution_id: str, source_json: str, results_json: str,
+                     config: dict, update_institution: bool = False) -> None:
+        with self.connection() as db:
+            db.execute("""INSERT INTO institution_datasets VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(institution_id) DO UPDATE SET source_json=excluded.source_json,
+                results_json=excluded.results_json, config_json=excluded.config_json, updated_at=excluded.updated_at""",
+                (institution_id, source_json, results_json, json.dumps(config), datetime.now(timezone.utc).isoformat()))
+            if update_institution:
+                db.execute("UPDATE institutions SET config_json=? WHERE id=?", (json.dumps(config), institution_id))
+
     def create_institution_with_admin(
         self, institution_id: str, name: str, institution_type: str, config: dict,
         display_name: str, email: str, password: str,
@@ -129,6 +148,24 @@ class AuditStore:
             )
         return {"institution_id": institution_id, "display_name": display_name, "email": email.strip().lower(), "role": "admin"}
 
+    def create_staff_user(self, institution_id: str, display_name: str, email: str, password: str, role: str = "teacher") -> dict:
+        if role not in {"teacher", "viewer"}:
+            raise ValueError("Only teacher or viewer accounts can be created here.")
+        if len(password) < 10:
+            raise ValueError("Password must contain at least 10 characters.")
+        salt = secrets.token_hex(16)
+        password_hash = self._hash_password(password, salt)
+        try:
+            with self.connection() as db:
+                db.execute(
+                    """INSERT INTO users (institution_id, display_name, email, role, password_salt, password_hash, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (institution_id, display_name.strip(), email.strip().lower(), role, salt, password_hash, datetime.now(timezone.utc).isoformat()),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("An account already exists for this email address.") from exc
+        return {"display_name": display_name.strip(), "email": email.strip().lower(), "role": role}
+
     def authenticate(self, email: str, password: str) -> dict | None:
         with self.connection() as db:
             row = db.execute(
@@ -146,6 +183,36 @@ class AuditStore:
             "institution_id": row["institution_id"], "institution_name": row["institution_name"],
             "institution_type": row["institution_type"], "display_name": row["display_name"],
             "email": row["email"], "role": row["role"], "config": json.loads(row["config_json"]),
+        }
+
+    def get_user(self, email: str) -> dict | None:
+        """Rehydrate a signed-in account from storage; never trust session role data."""
+        with self.connection() as db:
+            row = db.execute(
+                """SELECT users.*, institutions.name AS institution_name, institutions.institution_type,
+                institutions.config_json FROM users JOIN institutions ON institutions.id=users.institution_id
+                WHERE users.email=?""", (email.strip().lower(),)
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "institution_id": row["institution_id"], "institution_name": row["institution_name"],
+            "institution_type": row["institution_type"], "display_name": row["display_name"],
+            "email": row["email"], "role": row["role"], "config": json.loads(row["config_json"]),
+        }
+
+    def get_institution_config(self, institution_id: str) -> dict | None:
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT name, institution_type, config_json FROM institutions WHERE id = ?",
+                (institution_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "institution_name": row["name"],
+            "institution_type": row["institution_type"],
+            "config": json.loads(row["config_json"]),
         }
 
     def update_institution_config(self, institution_id: str, config: dict, editor_email: str) -> None:
@@ -186,11 +253,16 @@ class AuditStore:
                 (institution_id, student_id, json.dumps(checklist), notes, updated_by, datetime.now(timezone.utc).isoformat()),
             )
 
-    def screening_summary(self, institution_id: str) -> dict:
+    def screening_summary(self, institution_id: str, student_ids: list[str] | None = None) -> dict:
+        if student_ids is not None and not student_ids:
+            return {"started": 0, "complete": 0, "open": 0}
+        query = "SELECT checklist_json FROM screening_progress WHERE institution_id = ?"
+        params: list[str] = [institution_id]
+        if student_ids is not None:
+            query += " AND student_id IN (" + ", ".join("?" for _ in student_ids) + ")"
+            params.extend(student_ids)
         with self.connection() as db:
-            rows = db.execute(
-                "SELECT checklist_json FROM screening_progress WHERE institution_id = ?", (institution_id,)
-            ).fetchall()
+            rows = db.execute(query, params).fetchall()
         complete = 0
         for row in rows:
             values = list(json.loads(row["checklist_json"]).values())
@@ -245,7 +317,7 @@ class AuditStore:
     def list_cases(self, institution_id: str) -> list[dict]:
         with self.connection() as db:
             rows = db.execute(
-                "SELECT student_id, owner_email, status, priority, due_date, updated_by, updated_at FROM support_cases WHERE institution_id=? ORDER BY updated_at DESC LIMIT 500",
+                "SELECT student_id, owner_email, status, priority, due_date, updated_by, updated_at FROM support_cases WHERE institution_id=? ORDER BY updated_at DESC",
                 (institution_id,),
             ).fetchall()
         return [dict(row) for row in rows]

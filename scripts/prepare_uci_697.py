@@ -24,7 +24,9 @@ def main() -> None:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    source = pd.read_csv(args.input)
+    # UCI publishes this source with a semicolon separator. Automatic sniffing also
+    # keeps the preparation route usable when an institution exports a standard CSV.
+    source = pd.read_csv(args.input, sep=None, engine="python")
     # "Enrolled" is not a confirmed success/non-dropout outcome. Excluding it avoids
     # teaching a binary classifier that every currently enrolled student is safe.
     frame = source[source["Target"].isin(["Dropout", "Graduate"])].copy().reset_index(drop=True)

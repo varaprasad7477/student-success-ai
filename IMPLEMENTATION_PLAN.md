@@ -4,6 +4,54 @@
 
 Build one stable prediction core with institution adapters around it. Schools, colleges, and universities do not share identical column names, policies, schedules, or outcome definitions; therefore a universal model cannot safely accept arbitrary tables. Each institution receives a versioned configuration that maps its fields to a canonical schema, declares units, sets outreach thresholds, and defines local rules. A model is trained and approved for a defined data population. Cross-institution transfer must be measured, not assumed.
 
+## Recommended capstone scope
+
+### One user, one decision, one prediction window
+
+For the review, present this as a **university semester-one early-support screening prototype**. Its job is to help an authorized advisor decide who may benefit from a conversation; it does not diagnose a cause, decide student status, or automatically intervene. Keep the existing institution mapping as a demonstration of adaptability, but do not claim that one model already works for schools, colleges, and universities.
+
+Before any real-institution claim, agree with the data owner on:
+
+1. **Population:** which enrolled students are eligible for screening.
+2. **Prediction point:** the latest date/time at which every input is known.
+3. **Outcome and window:** exactly what counts as dropout/non-completion and by when.
+4. **Action:** what supportive follow-up staff can offer and how many cases they can handle.
+
+The UCI 697 benchmark currently contrasts confirmed Dropout with Graduate and excludes 794 still-Enrolled records. It is useful for a reproducible demonstration, but it does not establish a local or next-term outcome. OULAD supplies a separate day-28 withdrawal benchmark; its 2014J temporal holdout is materially weaker than the UCI shuffled-fold result. Keep those datasets and claims separate.
+
+### Model choice
+
+Use the existing model comparison rather than announcing one universally best algorithm:
+
+| Role | Recommendation | Why |
+|---|---|---|
+| Explainable baseline | Regularized logistic regression | Simple reference point; makes it easier to tell whether added complexity earns its place. |
+| Candidate champion | Histogram gradient boosting | It leads the current UCI benchmark by PR-AUC and Brier score, but its advantage over random forest is small and it is not proven to transfer. |
+| Challenger | Random forest | Its UCI recall/F1 are slightly higher at its own tuned threshold; compare it under the same untouched test design and workload constraints. |
+| Not now | Deep learning, LLM-based prediction, or a complex ensemble | The available inputs are small structured tables; these add complexity without evidence of better out-of-time decisions. |
+
+For the capstone, keep the current scikit-learn pipeline and report all candidates. Do not select solely on accuracy or a single F1-maximizing threshold. Select an operating threshold on validation data using the cost of missed cases, false alerts, and advisor capacity; report the resulting precision, recall, PR-AUC, calibration/Brier score, and alert volume on a separate untouched test set. The general training path currently reports out-of-fold metrics used to rank models and tune a threshold on the same OOF predictions, so describe those numbers as development estimates, not an independent final test. Prefer a cohort/time holdout for the final claim.
+
+An LLM is not needed to predict risk. If a later version adds a staff-facing assistant, limit it to retrieving approved institutional support resources and summarizing reviewed case notes; do not let it invent student facts, set risk scores, or make decisions.
+
+### Data entities and editing boundaries
+
+Keep the domain model small and explicit:
+
+- **Institution** — configuration, source-column mapping, units, rules, and thresholds.
+- **Student record** — institution-scoped stable ID and validated, time-stamped source facts.
+- **Model release** — model artifact/version, feature list, label/window, dataset reference, and evaluation report.
+- **Screening** — score, threshold, model release, input snapshot, missing-data state, and timestamp.
+- **Support case / intervention** — owner, status, follow-up, action, and outcome; separate from the model score.
+
+The app already supports editing mappings, rules, screening notes, and support cases. For the demo, show these as the user-configurable entities. Do not let staff silently edit historical model inputs in place: correct source facts through a validated import/correction flow, retain who changed what and when, then create a new screening. Use pseudonymous IDs in demo/reviewer data.
+
+### Keep versus defer
+
+**Keep:** CSV validation and mapping, insufficient-data handling, transparent model comparison, local evidence, policy flags separate from predictions, advisor review, and case follow-up. These directly support the project goal and can be demonstrated end to end.
+
+**Defer or remove from the capstone claim:** support for every education level, live production deployment, automated interventions/messages, complex AI assistant features, extra dashboards that do not change an advisor's action, and claims that benchmark performance is production accuracy. Authentication and the local database may remain as prototype infrastructure, but institutional identity integration, privacy approval, and operational security are production gates—not evidence that the model is accurate.
+
 ## Gaps found in the supplied work
 
 | Gap | Why it fails | Resolution in this rebuild |
@@ -54,7 +102,7 @@ Exit criterion: data owner and academic owner sign off on the outcome, fields, a
 - Audit performance and error rates across approved subgroups
 - Run counterfactual and domain sanity checks on explanations
 
-Exit criterion: agreed minimum recall and precision are met, calibration is acceptable, and no unexplained subgroup harm is present.
+Exit criterion: the data owner approves the outcome window; agreed minimum recall and precision are met on an untouched time-based test, calibration and alert workload are acceptable, and no unexplained subgroup harm is present. If these conditions are not met, keep the system in data-quality review or non-predictive demo mode.
 
 ### Phase 4 Shadow pilot
 
@@ -87,4 +135,3 @@ Deployment begins only after the earlier exit criteria. Then choose hosting, man
 5. Add an unrelated student and demonstrate that the first student's result does not change.
 6. Open model governance and explain why recall, PR-AUC, calibration, and temporal validation matter more than a single accuracy value.
 7. State clearly that the tool recommends outreach and does not decide a student's status.
-
